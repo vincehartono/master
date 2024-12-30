@@ -1,0 +1,15 @@
+,away_name,home_name,average,std,min,max,logistic_regression
+1578,Arizona Diamondbacks,Chicago Cubs,7.4,0.8432740427115678,6.556725957288433,8.243274042711569,7
+1579,Philadelphia Phillies,Pittsburgh Pirates,8.7,3.743141876967945,4.956858123032054,12.443141876967944,9
+1580,Cincinnati Reds,Washington Nationals,8.4,3.470510689285432,4.929489310714569,11.870510689285432,12
+1581,Tampa Bay Rays,New York Yankees,3.2,2.529822128134703,0.6701778718652971,5.729822128134703,13
+1582,Detroit Tigers,Toronto Blue Jays,6.4,0.9660917830792959,5.433908216920704,7.3660917830792965,5
+1583,San Diego Padres,Cleveland Guardians,7.4,0.5163977794943223,6.883602220505678,7.916397779494322,7
+1584,New York Mets,Miami Marlins,9.4,0.699205898780101,8.7007941012199,10.0992058987801,15
+1585,St. Louis Cardinals,Atlanta Braves,6.0,0.0,6.0,6.0,6
+1586,Baltimore Orioles,Texas Rangers,5.3,2.0027758514399734,3.2972241485600264,7.302775851439973,7
+1587,Chicago White Sox,Kansas City Royals,3.0,0.0,3.0,3.0,3
+1588,San Francisco Giants,Colorado Rockies,5.0,0.0,5.0,5.0,11
+1589,Los Angeles Angels,Oakland Athletics,5.0,0.0,5.0,5.0,5
+1590,Boston Red Sox,Los Angeles Dodgers,8.9,1.3703203194062976,7.529679680593703,10.270320319406299,10
+1591,Houston Astros,Seattle Mariners,6.0,0.0,6.0,6.0,6
