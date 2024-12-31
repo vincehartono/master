@@ -11,11 +11,11 @@ start_time = time.time()
 with open('model_assists.pkl', 'rb') as f:
     model_assists = pickle.load(f)
 
-with open('model_points.pkl', 'rb') as f:
-    model_points = pickle.load(f)
+# with open('model_points.pkl', 'rb') as f:
+#     model_points = pickle.load(f)
 
-with open('model_totReb.pkl', 'rb') as f:
-    model_totReb = pickle.load(f)
+# with open('model_totReb.pkl', 'rb') as f:
+#     model_totReb = pickle.load(f)
 
 # Load the encoder (must be the same as the one used for training)
 with open("encoder.pkl", "rb") as f:
