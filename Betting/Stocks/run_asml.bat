@@ -1,0 +1,1 @@
+python C:\Users\Vince\master\Betting\Stocks\asml.py

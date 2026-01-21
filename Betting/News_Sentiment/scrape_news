@@ -1,0 +1,73 @@
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
+from nltk.sentiment.vader import SentimentIntensityAnalyzer
+from collections import Counter
+import time
+import nltk
+
+# === Setup NLTK ===
+nltk.download('vader_lexicon')
+sia = SentimentIntensityAnalyzer()
+
+# === Selenium Setup ===
+chrome_path = r"C:\Users\Vince\Downloads\chromedriver-win64\chromedriver-win64\chromedriver.exe"  # Your path
+options = Options()
+# Comment this out to see the browser for debugging
+# options.add_argument("--headless=new")
+options.add_argument("--disable-blink-features=AutomationControlled")
+options.add_argument("--window-size=1920,1080")
+
+driver = webdriver.Chrome(executable_path=chrome_path, options=options)
+
+# === Search Google News ===
+company = "Tesla"
+query = company.replace(" ", "+")
+url = f"https://news.google.com/search?q={query}&hl=en-US&gl=US&ceid=US:en"
+
+driver.get(url)
+time.sleep(5)
+driver.save_screenshot("google_news_debug.png")
+
+# === Extract Headlines using flexible selectors ===
+elements = driver.find_elements(By.CSS_SELECTOR, "article h3, article h4")
+headlines = [el.text for el in elements if el.text.strip()]
+driver.quit()
+
+print(f"\n📰 Found {len(headlines)} news headlines about {company}.")
+
+# === Analyze Sentiment ===
+def classify(score):
+    if score >= 0.05:
+        return "POSITIVE"
+    elif score <= -0.05:
+        return "NEGATIVE"
+    else:
+        return "NEUTRAL"
+
+sentiment_counts = Counter()
+article_sentiments = []
+
+for title in headlines:
+    score = sia.polarity_scores(title)['compound']
+    label = classify(score)
+    sentiment_counts[label] += 1
+    article_sentiments.append((title, label, score))
+
+# === Show Results ===
+print("\n🔍 Sample Sentiment Analysis (Top 10):\n")
+for title, label, score in article_sentiments[:10]:
+    print(f"- {title}\n  → {label} (Score: {score:.2f})\n")
+
+total = sum(sentiment_counts.values())
+print("📊 Overall Sentiment Summary:")
+for label in ['POSITIVE', 'NEGATIVE', 'NEUTRAL']:
+    count = sentiment_counts.get(label, 0)
+    percent = (count / total) * 100 if total else 0
+    print(f"- {label}: {count} ({percent:.1f}%)")
+
+if total > 0:
+    overall = sentiment_counts.most_common(1)[0][0]
+    print(f"\n✅ Overall Sentiment about {company}: **{overall}**")
+else:
+    print("\n⚠️ Still no headlines found. Try running with headless off to debug.")

@@ -1,0 +1,16 @@
+======================================================================
+SPREAD PICKS - BEST LINE RECOMMENDATIONS
+======================================================================
+
+LOGIC:
+  - If NEGATIVE (favorite): Pick LOWEST line (closest to 0, less risk)
+  - If POSITIVE (underdog): Pick HIGHEST line (best payout)
+
+======================================================================
+
+Matchup: MIA vs SAC
+  SAC (UNDERDOG): Recommend SAC +3.5 (from: SAC +3.5, SAC +2.5)
+
+Matchup: MIN vs UTA
+  MIN (FAVORITE): Recommend MIN -11.0 (from: MIN -13.5, MIN -11.0, MIN -11.5)
+

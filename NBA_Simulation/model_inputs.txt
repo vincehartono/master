@@ -1,0 +1,39 @@
+# Override default inputs, folders, and commonly used runtime parameters (key=value).
+# Leave lines commented to use defaults. Paths can be absolute or relative.
+#PLAYER_SCORES_FILE=NBA_Simulation/player_scores.csv
+#FILTERED_GAME_SCORES_FILE=NBA_Simulation/filtered_game_scores.csv
+#CALIBRATION_FILE=NBA_Simulation/sim_calibration.csv
+#BACKTEST_CACHE_DIR=NBA_Simulation/Backtest_cache
+#PBP_DIR=NBA_Simulation/Play_by_Play
+#USAGE_CAPS_FILE=NBA_Simulation/usage_caps.csv
+#PLAYER_LINES_FILE=NBA_Simulation/player_props_points.csv   # Expected columns: player_name or player, team (optional), pts_line
+#GAME_LINES_FILE=NBA_Simulation/game_lines.csv              # Expected columns: home, away, spread, total
+
+# -----------------------------
+# Runtime parameters (documented)
+# Note: These are documented here for convenience. The runner currently
+# reads values from CLI flags; this file does not override CLI defaults
+# unless explicitly parsed in the code. Use as a checklist or copy values
+# into your scheduled command.
+# -----------------------------
+
+#START_DATE=YYYY-MM-DD              # Backtest start date (PST)
+#END_DATE=YYYY-MM-DD                # Backtest end date (PST). Default = today
+#BT_SIMS=100                        # Simulations per date for backtest
+#BT_SEED=7                          # RNG seed for backtest
+#BT_DAYS=14                         # Limit backtest to most recent N days (overrides START_DATE)
+#BT_WRITE=false                     # Write end-of-run CSV exports for backtests (cache writes are always on)
+#WINDOW_DAYS=30                     # Days of backtests to aggregate for calibration
+#TODAY_SIMS=200                     # Simulations for today's run
+#TODAY_SEED=42                      # RNG seed for today's run
+#WRITE_PBP=false                    # Write per-game play-by-play files
+#SKIP_BACKTEST=false                # Skip backtest and reuse cached per-day files
+#REUSE_BACKTEST=false               # Alias for SKIP_BACKTEST
+#SKIP_CALIBRATION=false             # Skip calibration rebuild; reuse existing sim_calibration.csv
+#LEARN_CAPS=false                   # Learn usage caps from `player_scores.csv` into `usage_caps.csv`
+#SIMS=                              # Global override: use this number for both BT_SIMS and TODAY_SIMS
+#FAST=false                         # Shortcut: set SIMS to a small number (e.g., 10)
+#REPORT_TOP_PERFORMERS=true         # Produce top-performers report at the end of a run
+#REPORT_LAST_N=5                    # Number of most recent games per player for error report
+#REPORT_ONLY=false                  # Only generate the report from cache and exit
+#NO_REPORT=false                    # Disable the report for a given run

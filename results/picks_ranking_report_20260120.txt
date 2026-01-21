@@ -1,0 +1,139 @@
+================================================================================
+NBA PICKS - TALLY & RANKING REPORT
+================================================================================
+
+Generated: 2026-01-20 11:03:21
+Total Picks Collected: 34
+
+PICKS BY SOURCE:
+--------------------------------------------------------------------------------
+  CBS Sports: 14 picks
+  PicksWise: 7 picks
+  Sports Chat Place: 7 picks
+  OddsShark: 3 picks
+  SportsBook Review: 3 picks
+
+
+TOP CONSENSUS PICKS (Ranked by Tally):
+--------------------------------------------------------------------------------
+
+RANK #1 - Tally: 2 source(s)
+  Sources: Sports Chat Place, CBS Sports
+  pick: GSW -3.5
+  matchup: GSW vs TOR
+  pick_type: spread
+
+RANK #2 - Tally: 2 source(s)
+  Sources: Sports Chat Place, CBS Sports
+  pick: LAC +3.5
+  matchup: CHI vs LAC
+  pick_type: spread
+
+RANK #3 - Tally: 2 source(s)
+  Sources: PicksWise, CBS Sports
+  pick: LAL -2.5
+  matchup: DEN vs LAL
+  pick_type: spread
+
+RANK #4 - Tally: 1 source(s)
+  Sources: PicksWise
+  pick: CHI CHI -3.5
+  matchup: CHI vs LAC
+  pick_type: spread
+
+RANK #5 - Tally: 1 source(s)
+  Sources: Sports Chat Place
+  pick: SAS SAS +4.5
+  matchup: HOU vs SAS
+  pick_type: spread
+
+RANK #6 - Tally: 1 source(s)
+  Sources: CBS Sports
+  pick: PHX -1.5
+  matchup: PHI vs PHX
+  pick_type: spread
+
+RANK #7 - Tally: 1 source(s)
+  Sources: Sports Chat Place
+  pick: PHX PHX +1.5
+  matchup: PHI vs PHX
+  pick_type: spread
+
+RANK #8 - Tally: 1 source(s)
+  Sources: Sports Chat Place
+  pick: SAC +2.5
+  matchup: MIA vs SAC
+  pick_type: spread
+
+RANK #9 - Tally: 1 source(s)
+  Sources: CBS Sports
+  pick: SAC +3.5
+  matchup: MIA vs SAC
+  pick_type: spread
+
+RANK #10 - Tally: 1 source(s)
+  Sources: OddsShark
+  pick: SAS +4
+  matchup: HOU vs SAS
+  pick_type: spread
+
+RANK #11 - Tally: 1 source(s)
+  Sources: PicksWise
+  pick: U224.5
+  matchup: HOU vs SAS
+  pick_type: over_under
+
+RANK #12 - Tally: 1 source(s)
+  Sources: PicksWise
+  pick: TOR TOR Win
+  matchup: GSW vs TOR
+  pick_type: spread
+
+RANK #13 - Tally: 1 source(s)
+  Sources: SportsBook Review
+  pick: O29.5 Points Scored
+  matchup: Tyrese Maxey prop
+  pick_type: prop
+
+RANK #14 - Tally: 1 source(s)
+  Sources: CBS Sports
+  pick: U225.5
+  matchup: GSW vs TOR
+  pick_type: over_under
+
+RANK #15 - Tally: 1 source(s)
+  Sources: OddsShark
+  pick: U225.5 Points
+  matchup: PHI vs PHX
+  pick_type: over_under
+
+RANK #16 - Tally: 1 source(s)
+  Sources: CBS Sports
+  pick: U237.5
+  matchup: DEN vs LAL
+  pick_type: over_under
+
+RANK #17 - Tally: 1 source(s)
+  Sources: PicksWise
+  pick: PHI PHI -1.5
+  matchup: PHI vs PHX
+  pick_type: spread
+
+RANK #18 - Tally: 1 source(s)
+  Sources: CBS Sports
+  pick: O244.5
+  matchup: MIN vs UTA
+  pick_type: over_under
+
+RANK #19 - Tally: 1 source(s)
+  Sources: SportsBook Review
+  pick: O28.5 Points Scored
+  matchup: Stephen Curry prop
+  pick_type: prop
+
+RANK #20 - Tally: 1 source(s)
+  Sources: Sports Chat Place
+  pick: DEN +2.5
+  matchup: DEN vs LAL
+  pick_type: spread
+

@@ -1,0 +1,17 @@
+[project]
+name = "nba-sim"
+version = "0.1.0"
+description = "Toy NBA possession/shot simulator"
+requires-python = ">=3.9"
+dependencies = [
+    "pandas",
+    "numpy",
+    "matplotlib",
+]
+
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project.scripts]
+nba-sim = "nba_sim.scripts.run_sim:main"

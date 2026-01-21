@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+
+# Logs
+*.log
+nba_picks.log
+
+# Output directories
+output/
+nba_picks_output/
+results/*.csv
+results/*.txt
+!results/README.md
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary
+*.tmp
+tempCodeRunnerFile.py
