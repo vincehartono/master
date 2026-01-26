@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Trading Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Courier New', monospace;
+            background: #0a0e27;
+            color: #00ff00;
+            padding: 20px;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #00ff00;
+            padding-bottom: 15px;
+        }
+        
+        h1 {
+            font-size: 28px;
+            text-shadow: 0 0 10px #00ff00;
+            margin-bottom: 5px;
+        }
+        
+        .timestamp {
+            color: #888;
+            font-size: 12px;
+        }
+        
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        .full-width {
+            grid-column: 1 / -1;
+        }
+        
+        .card {
+            background: #1a1f3a;
+            border: 1px solid #00ff00;
+            border-radius: 5px;
+            padding: 20px;
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.1);
+        }
+        
+        .card h2 {
+            font-size: 18px;
+            margin-bottom: 15px;
+            color: #00ff00;
+            text-transform: uppercase;
+            border-bottom: 1px solid #00ff00;
+            padding-bottom: 10px;
+        }
+        
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            margin: 10px 0;
+            padding: 8px 0;
+            border-bottom: 1px solid #333;
+        }
+        
+        .metric-label {
+            color: #888;
+            min-width: 150px;
+        }
+        
+        .metric-value {
+            color: #00ff00;
+            font-weight: bold;
+            text-align: right;
+            flex: 1;
+        }
+        
+        .metric-value.positive {
+            color: #00ff00;
+        }
+        
+        .metric-value.negative {
+            color: #ff0000;
+        }
+        
+        .price-display {
+            font-size: 36px;
+            font-weight: bold;
+            color: #00ffff;
+            text-align: center;
+            margin: 20px 0;
+            text-shadow: 0 0 20px #00ffff;
+        }
+        
+        .chart-container {
+            position: relative;
+            height: 300px;
+            margin: 20px 0;
+        }
+        
+        .indicators-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin: 15px 0;
+        }
+        
+        .indicator-item {
+            background: #0f1429;
+            border: 1px solid #004d00;
+            border-radius: 3px;
+            padding: 10px;
+            text-align: center;
+        }
+        
+        .indicator-label {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+        
+        .indicator-value {
+            font-size: 16px;
+            color: #00ff00;
+            font-weight: bold;
+        }
+        
+        .indicator-bar {
+            display: flex;
+            margin: 15px 0;
+            align-items: center;
+        }
+        
+        .indicator-label {
+            min-width: 100px;
+            color: #888;
+            font-size: 12px;
+        }
+        
+        .indicator-value {
+            margin-left: auto;
+            color: #00ff00;
+            font-weight: bold;
+            min-width: 80px;
+            text-align: right;
+        }
+        
+        .full-width {
+            grid-column: 1 / -1;
+        }
+        
+        .strategy-name {
+            font-size: 24px;
+            color: #00ffff;
+            text-shadow: 0 0 10px #00ffff;
+            margin: 10px 0;
+        }
+        
+        .strategy-pair {
+            font-size: 20px;
+            color: #ff00ff;
+            margin: 10px 0;
+        }
+        
+        .status-active {
+            color: #00ff00;
+            font-weight: bold;
+        }
+        
+        .status-inactive {
+            color: #ff0000;
+            font-weight: bold;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            font-size: 12px;
+        }
+        
+        th {
+            background: #0f1329;
+            border: 1px solid #00ff00;
+            padding: 8px;
+            text-align: left;
+            color: #00ff00;
+        }
+        
+        td {
+            border: 1px solid #333;
+            padding: 8px;
+        }
+        
+        tr:hover {
+            background: #2a2f4a;
+        }
+        
+        .status-buy {
+            color: #00ff00;
+        }
+        
+        .status-sell {
+            color: #ff0000;
+        }
+        
+        .last-update {
+            font-size: 11px;
+            color: #666;
+            margin-top: 10px;
+            text-align: right;
+        }
+        
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>⚡ LIVE TRADING DASHBOARD</h1>
+        <p class="timestamp">Updated: <span id="timestamp">--:--:--</span></p>
+    </div>
+    
+    <div class="container">
+        <!-- Strategy Card -->
+        <div class="card">
+            <h2>📊 Current Strategy</h2>
+            <div class="strategy-name" id="strategy-name">SMA Crossover</div>
+            <div class="strategy-pair" id="strategy-pair">BTC/USD</div>
+            <div class="metric">
+                <span class="metric-label">Timeframe:</span>
+                <span class="metric-value" id="strategy-timeframe">1Min</span>
+            </div>
+            <div class="metric">
+                <span class="metric-label">Combo Score:</span>
+                <span class="metric-value" id="strategy-score">0.0</span>
+            </div>
+            <div class="metric">
+                <span class="metric-label">Win Rate:</span>
+                <span class="metric-value" id="strategy-wr">0.0%</span>
+            </div>
+            <div class="metric">
+                <span class="metric-label">Profit Factor:</span>
+                <span class="metric-value" id="strategy-pf">1.0</span>
+            </div>
+            <div class="metric">
+                <span class="metric-label">Sharpe Ratio:</span>
+                <span class="metric-value" id="strategy-sharpe">0.0</span>
+            </div>
+        </div>
+        
+        <!-- Price Card -->
+        <div class="card">
+            <h2>💰 Price & Volume</h2>
+            <div class="price-display pulse" id="price-display">$0.000</div>
+            <div class="metric">
+                <span class="metric-label">24H High:</span>
+                <span class="metric-value" id="price-high">$0.000</span>
+            </div>
+            <div class="metric">
+                <span class="metric-label">24H Low:</span>
+                <span class="metric-value" id="price-low">$0.000</span>
+            </div>
+            <div class="metric">
+                <span class="metric-label">Volume:</span>
+                <span class="metric-value" id="price-volume">0</span>
+            </div>
+        </div>
+        
+        <!-- Indicators Card -->
+        <div class="card">
+            <h2>📈 Technical Indicators</h2>
+            <div class="indicator-bar">
+                <span class="indicator-label">RSI (14)</span>
+                <span class="indicator-value" id="rsi-value">--</span>
+            </div>
+            <div style="width: 100%; height: 8px; background: #333; border-radius: 4px; margin: 5px 0;">
+                <div id="rsi-bar" style="width: 50%; height: 100%; background: #ffff00; border-radius: 4px;"></div>
+            </div>
+            
+            <div class="indicator-bar">
+                <span class="indicator-label">SMA Fast (10)</span>
+                <span class="indicator-value" id="sma-fast-value">--</span>
+            </div>
+            
+            <div class="indicator-bar">
+                <span class="indicator-label">SMA Slow (30)</span>
+                <span class="indicator-value" id="sma-slow-value">--</span>
+            </div>
+            
+            <div class="indicator-bar">
+                <span class="indicator-label">BB Upper</span>
+                <span class="indicator-value" id="bb-upper-value">--</span>
+            </div>
+            
+            <div class="indicator-bar">
+                <span class="indicator-label">BB Mid</span>
+                <span class="indicator-value" id="bb-mid-value">--</span>
+            </div>
+            
+            <div class="indicator-bar">
+                <span class="indicator-label">BB Lower</span>
+                <span class="indicator-value" id="bb-lower-value">--</span>
+            </div>
+        </div>
+        
+        <!-- Account Card -->
+        <div class="card">
+            <h2>💳 Account Info</h2>
+            <div class="metric">
+                <span class="metric-label">Equity:</span>
+                <span class="metric-value" id="account-equity">$0.00</span>
+            </div>
+            <div class="metric">
+                <span class="metric-label">Cash:</span>
+                <span class="metric-value" id="account-cash">$0.00</span>
+            </div>
+            <div class="metric">
+                <span class="metric-label">Buying Power:</span>
+                <span class="metric-value" id="account-bp">$0.00</span>
+            </div>
+            <div class="metric">
+                <span class="metric-label">Status:</span>
+                <span class="metric-value status-active" id="account-status">● ACTIVE</span>
+            </div>
+        </div>
+        
+        <!-- Price Chart Card -->
+        <div class="card full-width">
+            <h2>📈 Price Chart (Last 60 Minutes)</h2>
+            <div class="chart-container">
+                <canvas id="price-chart"></canvas>
+            </div>
+        </div>
+        
+        <!-- RSI Indicator Chart Card -->
+        <div class="card full-width">
+            <h2>📊 RSI Indicator Chart</h2>
+            <div class="chart-container">
+                <canvas id="indicator-chart"></canvas>
+            </div>
+        </div>
+        
+        <!-- Recent Trades Card -->
+        <div class="card full-width">
+            <h2>📋 Recent Trades</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>Symbol</th>
+                        <th>Side</th>
+                        <th>Qty</th>
+                        <th>Price</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="trades-table">
+                    <tr>
+                        <td colspan="6" style="text-align: center; color: #666;">No trades yet</td>
+                    </tr>
+                </tbody>
+            </table>
+            <div class="last-update" id="last-update">Last updated: --</div>
+        </div>
+    </div>
+    
+    <script>
+        // Auto-refresh data every 5 seconds
+        async function updateDashboard() {
+            try {
+                const response = await fetch('/api/data');
+                const data = await response.json();
+                
+                // Update timestamp
+                document.getElementById('timestamp').textContent = new Date().toLocaleTimeString();
+                
+                // Update Strategy
+                const strategy = data.strategy;
+                document.getElementById('strategy-name').textContent = strategy.name;
+                document.getElementById('strategy-pair').textContent = strategy.symbol;
+                document.getElementById('strategy-timeframe').textContent = strategy.timeframe;
+                document.getElementById('strategy-score').textContent = strategy.combo_score.toFixed(1);
+                document.getElementById('strategy-wr').textContent = (strategy.win_rate || 0).toFixed(1) + '%';
+                document.getElementById('strategy-pf').textContent = (strategy.profit_factor || 0).toFixed(2);
+                document.getElementById('strategy-sharpe').textContent = (strategy.sharpe || 0).toFixed(2);
+                
+                // Update Price
+                const price = data.price;
+                document.getElementById('price-display').textContent = '$' + price.price.toFixed(8);
+                document.getElementById('price-high').textContent = '$' + price.high.toFixed(8);
+                document.getElementById('price-low').textContent = '$' + price.low.toFixed(8);
+                document.getElementById('price-volume').textContent = price.volume.toLocaleString();
+                
+                // Update Indicators
+                const ind = price.indicators;
+                if (ind.rsi) {
+                    const rsi = ind.rsi;
+                    document.getElementById('rsi-value').textContent = rsi.toFixed(1);
+                    document.getElementById('rsi-bar').style.width = rsi + '%';
+                    
+                    // Color based on RSI
+                    if (rsi < 30) {
+                        document.getElementById('rsi-bar').style.background = '#00ff00';
+                    } else if (rsi > 70) {
+                        document.getElementById('rsi-bar').style.background = '#ff0000';
+                    } else {
+                        document.getElementById('rsi-bar').style.background = '#ffff00';
+                    }
+                }
+                
+                if (ind.sma_fast) document.getElementById('sma-fast-value').textContent = '$' + ind.sma_fast.toFixed(8);
+                if (ind.sma_slow) document.getElementById('sma-slow-value').textContent = '$' + ind.sma_slow.toFixed(8);
+                if (ind.bb_upper) document.getElementById('bb-upper-value').textContent = '$' + ind.bb_upper.toFixed(8);
+                if (ind.bb_mid) document.getElementById('bb-mid-value').textContent = '$' + ind.bb_mid.toFixed(8);
+                if (ind.bb_lower) document.getElementById('bb-lower-value').textContent = '$' + ind.bb_lower.toFixed(8);
+                
+                // Update Account
+                const account = data.account;
+                document.getElementById('account-equity').textContent = '$' + account.equity.toFixed(2);
+                document.getElementById('account-cash').textContent = '$' + account.cash.toFixed(2);
+                document.getElementById('account-bp').textContent = '$' + account.buying_power.toFixed(2);
+                
+                // Update Trades
+                const trades = data.trades;
+                const tradesTable = document.getElementById('trades-table');
+                if (trades.length > 0) {
+                    tradesTable.innerHTML = trades.map(trade => `
+                        <tr>
+                            <td>${trade.Timestamp ? new Date(trade.Timestamp).toLocaleTimeString() : '--'}</td>
+                            <td>${trade.Symbol || '--'}</td>
+                            <td class="status-${trade.Side?.toLowerCase() || 'unknown'}">${trade.Side || '--'}</td>
+                            <td>${parseFloat(trade.Quantity || 0).toFixed(4)}</td>
+                            <td>$${parseFloat(trade.Price || 0).toFixed(8)}</td>
+                            <td>${trade.Status || '--'}</td>
+                        </tr>
+                    `).join('');
+                } else {
+                    tradesTable.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #666;">No trades yet</td></tr>';
+                }
+                
+                document.getElementById('last-update').textContent = 'Last updated: ' + new Date().toLocaleTimeString();
+                
+            } catch (error) {
+                console.error('Error updating dashboard:', error);
+            }
+        }
+        
+        // Initial update
+        updateDashboard();
+        
+        // Price history for chart
+        let priceHistory = [];
+        let indicatorHistory = [];
+        
+        // Initialize charts
+        const priceCtx = document.getElementById('price-chart')?.getContext('2d');
+        let priceChart = null;
+        
+        const indicatorCtx = document.getElementById('indicator-chart')?.getContext('2d');
+        let indicatorChart = null;
+        
+        function updateCharts(data) {
+            const currentPrice = parseFloat(data.price || 0);
+            
+            // Keep last 60 data points (1 minute with 1-second updates)
+            priceHistory.push(currentPrice);
+            if (priceHistory.length > 60) priceHistory.shift();
+            
+            // Update price chart
+            if (priceCtx && priceHistory.length > 0) {
+                if (!priceChart) {
+                    priceChart = new Chart(priceCtx, {
+                        type: 'line',
+                        data: {
+                            labels: priceHistory.map((_, i) => i),
+                            datasets: [{
+                                label: data.symbol + ' Price',
+                                data: priceHistory,
+                                borderColor: '#00ffff',
+                                backgroundColor: 'rgba(0, 255, 255, 0.1)',
+                                borderWidth: 2,
+                                tension: 0.4,
+                                fill: true,
+                                pointRadius: 0,
+                                pointHoverRadius: 5,
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    labels: { color: '#00ff00', font: { size: 12 } }
+                                }
+                            },
+                            scales: {
+                                y: {
+                                    grid: { color: '#333' },
+                                    ticks: { color: '#00ff00' }
+                                },
+                                x: {
+                                    grid: { color: '#333' },
+                                    ticks: { color: '#00ff00' }
+                                }
+                            }
+                        }
+                    });
+                } else {
+                    priceChart.data.labels = priceHistory.map((_, i) => i);
+                    priceChart.data.datasets[0].data = priceHistory;
+                    priceChart.update('none');
+                }
+            }
+            
+            // Update RSI indicator chart
+            const rsi = parseFloat(data.indicators?.rsi || 50);
+            indicatorHistory.push(rsi);
+            if (indicatorHistory.length > 60) indicatorHistory.shift();
+            
+            if (indicatorCtx && indicatorHistory.length > 0) {
+                if (!indicatorChart) {
+                    indicatorChart = new Chart(indicatorCtx, {
+                        type: 'line',
+                        data: {
+                            labels: indicatorHistory.map((_, i) => i),
+                            datasets: [{
+                                label: 'RSI(14)',
+                                data: indicatorHistory,
+                                borderColor: '#ff00ff',
+                                backgroundColor: 'rgba(255, 0, 255, 0.1)',
+                                borderWidth: 2,
+                                tension: 0.4,
+                                fill: true,
+                                pointRadius: 0,
+                                pointHoverRadius: 5,
+                            },
+                            {
+                                label: 'Overbought (70)',
+                                data: Array(indicatorHistory.length).fill(70),
+                                borderColor: '#ff0000',
+                                borderDash: [5, 5],
+                                borderWidth: 1,
+                                fill: false,
+                                pointRadius: 0,
+                            },
+                            {
+                                label: 'Oversold (30)',
+                                data: Array(indicatorHistory.length).fill(30),
+                                borderColor: '#00ff00',
+                                borderDash: [5, 5],
+                                borderWidth: 1,
+                                fill: false,
+                                pointRadius: 0,
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    labels: { color: '#00ff00', font: { size: 12 } }
+                                }
+                            },
+                            scales: {
+                                y: {
+                                    min: 0,
+                                    max: 100,
+                                    grid: { color: '#333' },
+                                    ticks: { color: '#00ff00' }
+                                },
+                                x: {
+                                    grid: { color: '#333' },
+                                    ticks: { color: '#00ff00' }
+                                }
+                            }
+                        }
+                    });
+                } else {
+                    indicatorChart.data.labels = indicatorHistory.map((_, i) => i);
+                    indicatorChart.data.datasets[0].data = indicatorHistory;
+                    indicatorChart.data.datasets[1].data = Array(indicatorHistory.length).fill(70);
+                    indicatorChart.data.datasets[2].data = Array(indicatorHistory.length).fill(30);
+                    indicatorChart.update('none');
+                }
+            }
+        }
+        
+        // Modified updateDashboard to call updateCharts
+        const originalUpdateDashboard = updateDashboard;
+        updateDashboard = function() {
+            originalUpdateDashboard();
+            fetch('/api/data')
+                .then(r => r.json())
+                .then(data => updateCharts(data))
+                .catch(e => console.error('Chart update error:', e));
+        };
+        
+        // Auto-refresh every 60 seconds (1 minute)
+        setInterval(updateDashboard, 60000);
+    </script>
+</body>
+</html>

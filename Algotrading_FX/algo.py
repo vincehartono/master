@@ -207,10 +207,11 @@ class IBKRAlgoTrader:
     def place_market_order(self, contract, action: str, quantity: int):
         """
         action: 'BUY' or 'SELL'
+        Uses GTC (Good Till Cancelled) to prevent auto-cancellation at market close
         """
         order = MarketOrder(action.upper(), quantity)
+        order.tif = 'GTC'  # Good Till Cancelled (don't expire at market close)
         trade = self.ib.placeOrder(contract, order)
-        # You can add waits/confirmations here if desired
         return trade
 
     def place_limit_order(self, contract, action: str, quantity: int, limit_price: float):
@@ -226,15 +227,29 @@ class IBKRAlgoTrader:
 
     def get_account_value(self) -> float:
         """
-        Uses NetLiquidation from account summary.
+        Uses NetLiquidation from account summary (cached for 10 seconds).
+        Reduces excessive account summary queries that cause Error 322.
         """
+        now = time.time()
+        # Return cached value if available and < 10 seconds old
+        if hasattr(self, '_account_cache') and hasattr(self, '_account_cache_time'):
+            if now - self._account_cache_time < 10:
+                return self._account_cache
+        
         try:
             summary = self.ib.accountSummary()
             for item in summary:
                 if getattr(item, "tag", "") == "NetLiquidation":
-                    return safe_float(item.value, 0.0)
-        except Exception:
-            pass
+                    value = safe_float(item.value, 0.0)
+                    self._account_cache = value
+                    self._account_cache_time = now
+                    return value
+        except Exception as e:
+            if "Maximum number" in str(e):
+                # Rate limited, return cached value if available
+                if hasattr(self, '_account_cache'):
+                    return self._account_cache
+        
         return 0.0
 
 
@@ -713,19 +728,14 @@ class StrategyOptimizer:
     @staticmethod
     def _duration_for_timeframe(timeframe: str) -> str:
         """
-        Heuristic duration mapping (from your screenshots). Adjust as you like.
+        Duration mapping to ensure at least 50+ bars available.
+        Matches IBKR API constraints (e.g., 1-min data only goes back ~1 month).
         """
         duration_map = {
-            "1 min": "1 D",
-            "5 mins": "5 D",
-            "15 mins": "1 W",
-            "30 mins": "2 W",
-            "1 hour": "1 M",
-            "2 hours": "2 M",
-            "4 hours": "3 M",
-            "1 day": "1 Y",
-            "1 week": "2 Y",
-            "1 month": "5 Y",
+            "1 min": "1 D",        # 1440 bars in 24h = plenty for 50 bar min
+            "5 mins": "1 W",       # 288 bars in 1 week
+            "15 mins": "2 W",      # 96 bars in 2 weeks
+            "30 mins": "1 M",      # 48 bars in 1 month
         }
         return duration_map.get(timeframe, "1 M")
 
@@ -762,8 +772,8 @@ class StrategyOptimizer:
         duration = self._duration_for_timeframe(timeframe)
         df = self.trader.get_historical_data(contract, duration=duration, bar_size=timeframe)
 
-        if df.empty or len(df) < 50:
-            raise ValueError("Insufficient data")
+        if df.empty or len(df) < 20:  # Relaxed from 50 to 20 bars (still enough for SMA/EMA)
+            raise ValueError(f"Insufficient data: got {len(df) if not df.empty else 0} bars")
 
         # Prepare data for backtrader feed
         df = df.copy()
@@ -950,26 +960,62 @@ class LiveTrader:
                     log_message(msg)
                     return
 
+                # FX has margin requirement (typically 50:1, so 2% of notional needed)
+                margin_requirement = 0.02  # 2% (50:1 leverage)
+                max_notional = account_balance / margin_requirement
+                max_quantity = int(max_notional / close_price)
+                
                 risk_fraction = max(self.risk.balance_risk_pct, 0.0) / 100.0
                 if risk_fraction > 0:
                     notional = account_balance * risk_fraction
-                    quantity = max(int(notional / close_price), self.risk.min_quantity)
+                    quantity = int(notional / close_price)
+                    # Cap to max allowed by margin
+                    quantity = min(quantity, max_quantity)
+                    quantity = max(quantity, self.risk.min_quantity)
                 else:
                     # Fallback to fixed quantity if percentage is disabled
-                    quantity = self.risk.quantity
+                    quantity = min(self.risk.quantity, max_quantity)
+
+                # Final check: ensure we have enough margin
+                required_cash = quantity * close_price * margin_requirement
+                if required_cash > account_balance:
+                    msg = f"[WARN] Insufficient margin. Need ${required_cash:.2f}, have ${account_balance:.2f}. Skipping trade."
+                    print(msg)
+                    log_message(msg)
+                    return
 
                 msg = (
-                    f"Placing LIMIT BUY for {quantity} units "
-                    f"(balance={account_balance:.2f}, limit={close_price:.5f})"
+                    f"Placing MARKET BUY for {quantity} units "
+                    f"(balance=${account_balance:.2f}, price=${close_price:.5f}, margin_req=${required_cash:.2f})"
                 )
                 print(msg)
                 log_message(msg)
-                trade = self.trader.place_limit_order(contract, "BUY", quantity, close_price)
-
-                self.position_opened = True
-                self.entry_time = now_ts()
-                self.entry_price = float(latest["close"])
-                self.position_quantity = quantity
+                
+                # Use market order to guarantee execution on entry signal
+                trade = self.trader.place_market_order(contract, "BUY", quantity)
+                
+                # Wait a moment for order to be processed
+                time.sleep(2)
+                
+                # Verify position was actually filled
+                positions = self.trader.get_positions()
+                position_filled = False
+                for p in positions:
+                    if p.contract.symbol == self.symbol:
+                        pos_size = getattr(p, "position", 0)
+                        if pos_size > 0:
+                            position_filled = True
+                            self.position_quantity = pos_size
+                            break
+                
+                if position_filled:
+                    self.position_opened = True
+                    self.entry_time = now_ts()
+                    self.entry_price = float(latest["close"])
+                    print(f"[OK] Position FILLED: {self.position_quantity} units @ {close_price:.5f}")
+                else:
+                    print("[WARN] Market order placed but position not yet filled. Retrying next cycle...")
+                    self.position_opened = False
 
         except Exception as e:
             print(f"[ERROR] Strategy execution error: {e}")
@@ -1091,7 +1137,7 @@ def main():
         stop_loss=3,           # close all when P&L <= -$3
         quantity=1000,         # legacy / unused as long as balance_risk_pct > 0
         balance_risk_pct=10.0, # 10% of account balance per trade
-        min_quantity=1,       # at least 10 units
+        min_quantity=1,       # at least 1 units
         check_interval=60,     # check every 60 seconds
     )
     live = LiveTrader(trader, live_cfg, risk=risk, logger=logger, cycle=1)
