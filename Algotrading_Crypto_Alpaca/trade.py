@@ -130,6 +130,59 @@ def set_credentials(is_live: bool) -> None:
         os.environ["APCA_API_BASE_URL"] = BASE_URL
 
 
+def get_best_strategy_from_backtest() -> Tuple[str, List[str], str]:
+    """Load best strategy, symbol, and timeframe from backtest_results.json"""
+    try:
+        script_dir = get_script_dir()
+        backtest_file = os.path.join(script_dir, "backtest_results.json")
+        
+        with open(backtest_file, "r") as f:
+            results = json.load(f)
+        
+        if not results:
+            return "SMA Crossover", ["BTC/USD"], "1Min"
+        
+        # Calculate combo score for each result
+        for result in results:
+            pf = float(result.get('profit_factor', 1.0))
+            wr = float(result.get('win_rate', 0.5))
+            ret = float(result.get('total_return', 0.0))
+            sharpe = float(result.get('sharpe_ratio', 0.0))
+            
+            # Normalize scores
+            pf_score = min(pf * 50, 100) if pf > 0 else 0
+            wr_score = wr * 100  # Already 0-1, scale to 0-100
+            ret_score = max(0, min((ret * 100 + 50), 100))
+            sharpe_score = max(0, min((sharpe + 5) / 10 * 100, 100))
+            
+            # Weighted combo score
+            combo = (pf_score * 0.40 + wr_score * 0.30 + ret_score * 0.20 + sharpe_score * 0.10)
+            result['combo_score'] = combo
+        
+        # Get best result
+        best = max(results, key=lambda x: x.get('combo_score', -999))
+        
+        strategy = best['strategy_name']
+        symbol = best['symbol']
+        timeframe = best['timeframe']
+        score = best['combo_score']
+        pf = best['profit_factor']
+        wr = best['win_rate']
+        
+        print(f"\n[INFO] ===== BEST STRATEGY FROM BACKTEST =====")
+        print(f"[INFO] Strategy: {strategy}")
+        print(f"[INFO] Best Symbol: {symbol}")
+        print(f"[INFO] Timeframe: {timeframe}")
+        print(f"[INFO] Score: {score:.2f} | Profit Factor: {pf:.2f} | Win Rate: {wr*100:.1f}%")
+        print(f"[INFO] ==========================================\n")
+        
+        return strategy, [symbol], timeframe
+    
+    except Exception as e:
+        print(f"[ERROR] Failed to load best strategy from backtest: {e}")
+        return "SMA Crossover", ["BTC/USD"], "1Min"
+
+
 def get_script_dir() -> str:
     """Get the correct script directory (handles both EXE and Python execution)"""
     # Check if running from PyInstaller bundle
@@ -411,15 +464,23 @@ class AlpacaCryptoBot:
             return TimeFrame(amount=1, unit=TimeFrameUnit.Minute)  # Default fallback
     
     def get_historical_bars(self, symbol: str, bars: int) -> pd.DataFrame:
-        """Fetch historical crypto bars"""
+        """Fetch historical crypto bars with full date range"""
         try:
             # Parse timeframe from config
             tf = self._parse_timeframe(self.config.timeframe)
             
+            # Request data with date range to get full historical depth
+            # Without start/end, Alpaca only returns ~45 minutes of crypto data
+            end_time = datetime.now()
+            # Request 7 days of historical data (adjust based on needs)
+            start_time = end_time - timedelta(days=7)
+            
             request = CryptoBarsRequest(
                 symbol_or_symbols=symbol,
                 timeframe=tf,
-                limit=bars,
+                start=start_time,
+                end=end_time,
+                limit=bars,  # Cap at requested limit
             )
             bars_data = self.data_client.get_crypto_bars(request)
             
@@ -436,7 +497,7 @@ class AlpacaCryptoBot:
     
     def calculate_indicators(self, df: pd.DataFrame) -> Dict[str, Any]:
         """Calculate all indicators needed for strategies"""
-        if df.empty or len(df) < 30:
+        if df.empty or len(df) < 2:
             return {}
         
         df = df.copy()
@@ -445,29 +506,39 @@ class AlpacaCryptoBot:
         low = df['low']
         volume = df['volume']
         
-        # SMA/EMA
-        df['sma_fast'] = close.rolling(self.config.sma_fast).mean()
-        df['sma_slow'] = close.rolling(self.config.sma_slow).mean()
-        df['ema_fast'] = close.ewm(span=self.config.sma_fast).mean()
-        df['ema_slow'] = close.ewm(span=self.config.sma_slow).mean()
+        # Adaptive window sizes based on available bars
+        n_bars = len(df)
+        bb_window = min(20, max(3, n_bars - 1))  # Bollinger Bands: min 3, max 20
+        rsi_window = min(14, max(2, n_bars - 1))  # RSI: min 2, max 14
+        atr_window = min(14, max(2, n_bars - 1))  # ATR: min 2, max 14
+        stoch_window = min(14, max(2, n_bars - 1))  # Stochastic: min 2, max 14
+        vol_window = min(20, max(3, n_bars - 1))  # Volume SMA: min 3, max 20
         
-        # MACD
-        ema12 = close.ewm(span=12).mean()
-        ema26 = close.ewm(span=26).mean()
+        # SMA/EMA
+        df['sma_fast'] = close.rolling(min(self.config.sma_fast, max(2, n_bars - 1))).mean()
+        df['sma_slow'] = close.rolling(min(self.config.sma_slow, max(2, n_bars - 1))).mean()
+        df['ema_fast'] = close.ewm(span=min(self.config.sma_fast, max(2, n_bars - 1))).mean()
+        df['ema_slow'] = close.ewm(span=min(self.config.sma_slow, max(2, n_bars - 1))).mean()
+        
+        # MACD (adjust spans for limited data)
+        ema12_span = min(12, max(2, n_bars - 1))
+        ema26_span = min(26, max(2, n_bars - 1))
+        ema12 = close.ewm(span=ema12_span).mean()
+        ema26 = close.ewm(span=ema26_span).mean()
         df['macd'] = ema12 - ema26
-        df['macd_signal'] = df['macd'].ewm(span=9).mean()
+        df['macd_signal'] = df['macd'].ewm(span=min(9, max(2, n_bars - 1))).mean()
         df['macd_hist'] = df['macd'] - df['macd_signal']
         
         # RSI
         delta = close.diff()
-        gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
-        loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
+        gain = (delta.where(delta > 0, 0)).rolling(window=rsi_window).mean()
+        loss = (-delta.where(delta < 0, 0)).rolling(window=rsi_window).mean()
         rs = gain / loss
         df['rsi'] = 100 - (100 / (1 + rs))
         
         # Bollinger Bands
-        df['bb_mid'] = close.rolling(20).mean()
-        bb_std = close.rolling(20).std()
+        df['bb_mid'] = close.rolling(bb_window).mean()
+        bb_std = close.rolling(bb_window).std()
         df['bb_upper'] = df['bb_mid'] + (bb_std * 2)
         df['bb_lower'] = df['bb_mid'] - (bb_std * 2)
         
@@ -476,19 +547,19 @@ class AlpacaCryptoBot:
         tr2 = abs(high - close.shift(1))
         tr3 = abs(low - close.shift(1))
         tr = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
-        df['atr'] = tr.rolling(14).mean()
+        df['atr'] = tr.rolling(atr_window).mean()
         
         # Momentum
-        df['momentum'] = close - close.shift(10)
+        df['momentum'] = close - close.shift(min(10, max(1, n_bars - 2)))
         
         # Stochastic
-        min_low = low.rolling(14).min()
-        max_high = high.rolling(14).max()
+        min_low = low.rolling(stoch_window).min()
+        max_high = high.rolling(stoch_window).max()
         df['stoch'] = 100 * (close - min_low) / (max_high - min_low)
-        df['stoch_signal'] = df['stoch'].rolling(3).mean()
+        df['stoch_signal'] = df['stoch'].rolling(max(2, min(3, n_bars - 1))).mean()
         
         # Volume SMA
-        df['volume_sma'] = volume.rolling(20).mean()
+        df['volume_sma'] = volume.rolling(vol_window).mean()
         
         latest = df.iloc[-1]
         
@@ -850,6 +921,20 @@ class AlpacaCryptoBot:
         log_message(f"Stop Loss: ${self.config.stop_loss:.2f} | Profit Target: ${self.config.profit_target:.2f}")
         log_message("=" * 80)
         
+        # Check for any existing positions at startup
+        try:
+            existing_positions = self.trading_client.get_all_positions()
+            if existing_positions:
+                log_message(f"\n[INFO] Found {len(existing_positions)} existing position(s):")
+                for pos in existing_positions:
+                    qty = float(pos.qty)
+                    avg_fill = float(pos.avg_entry_price) if pos.avg_entry_price else None
+                    if avg_fill:
+                        log_message(f"  • {pos.symbol}: {qty:+.2f} @ ${avg_fill:.4f} (will monitor P&L)")
+                log_message("")
+        except Exception as e:
+            log_message(f"[DEBUG] Could not check existing positions: {e}")
+        
         try:
             loop_count = 0
             last_trade_time = datetime.now()
@@ -887,8 +972,11 @@ class AlpacaCryptoBot:
                     f"No trade: {minutes_since:.0f}m"
                 )
                 
-                # [RERUN BACKTEST] If 1 hour without trade
-                if time_since_trade > no_trade_threshold:
+                # [RERUN BACKTEST] If 1 hour without trade AND no open position
+                # Don't change strategy if we're holding a position
+                has_any_position = len(self.trading_client.get_all_positions()) > 0
+                
+                if time_since_trade > no_trade_threshold and not has_any_position:
                     msg = f"\n[!] No trades in 1 hour. Rerunning backtest for new strategy..."
                     print(msg)
                     log_message(msg)
@@ -970,6 +1058,10 @@ class AlpacaCryptoBot:
                         
                         indicators = self.calculate_indicators(df)
                         
+                        # Skip if indicators calculation failed
+                        if not indicators or 'close' not in indicators:
+                            continue
+                        
                         # Update dashboard with current price and indicators
                         dashboard_state.price = float(indicators['close'])
                         dashboard_state.high = float(df['high'].iloc[-1]) if 'high' in df.columns else 0
@@ -994,10 +1086,22 @@ class AlpacaCryptoBot:
                         
                         # ========== CHECK PROFIT TARGET & STOP LOSS ==========
                         try:
+                            # Try direct lookup first
                             position = self.trading_client.get_open_position(symbol)
+                            if not position:
+                                # Fallback: search through all positions
+                                try:
+                                    all_positions = self.trading_client.get_all_positions()
+                                    position = next(
+                                        (p for p in all_positions if symbol.replace('/', '') in p.symbol.replace('/', '')),
+                                        None
+                                    )
+                                except Exception:
+                                    position = None
+                            
                             if position and float(position.qty) != 0:
                                 try:
-                                    entry_price = float(position.avg_fill_price) if position.avg_fill_price else None
+                                    entry_price = float(position.avg_entry_price) if position.avg_entry_price else None
                                     if not entry_price:
                                         # Skip if we can't determine entry price
                                         pass
@@ -1052,10 +1156,22 @@ class AlpacaCryptoBot:
                         
                         # Check if we already have an open position
                         try:
+                            # Try direct lookup first
                             existing_position = self.trading_client.get_open_position(symbol)
                             has_position = existing_position and float(existing_position.qty) != 0
                         except Exception:
-                            has_position = False
+                            # Fallback: search through all positions
+                            try:
+                                all_positions = self.trading_client.get_all_positions()
+                                # Match symbol with various formats (DOGE/USD, DOGEUSD, etc.)
+                                existing_position = next(
+                                    (p for p in all_positions if symbol.replace('/', '') in p.symbol.replace('/', '')),
+                                    None
+                                )
+                                has_position = existing_position and float(existing_position.qty) != 0
+                            except Exception:
+                                has_position = False
+                                existing_position = None
                         
                         if signal == "BUY":
                             # Only BUY if we don't have an open position
@@ -1220,56 +1336,11 @@ def main():
             selected_timeframe = "1Min"
     else:
         # Try to load from existing backtest results JSON
-        print("\n[INFO] Skipped backtest. Checking for existing backtest results...")
-        results_file = "backtest_results.json"
-        selected_strategy = None
-        selected_symbol = None
-        selected_timeframe = None
+        print("\n[INFO] Skipped backtest. Loading best strategy from backtest results...")
         
-        if os.path.exists(results_file):
-            try:
-                with open(results_file, "r") as f:
-                    results = json.load(f)
-                
-                if results:
-                    # Calculate combo scores for existing results
-                    for result in results:
-                        pf = float(result.get("profit_factor", 1.0))
-                        wr = float(result.get("win_rate", 50))
-                        ret = float(result.get("total_return", 0)) / 100
-                        sharpe = float(result.get("sharpe_ratio", 0))
-                        
-                        pf_score = min(pf * 50, 100) if pf > 0 else 0
-                        wr_score = wr
-                        ret_score = max(0, min((ret * 100 + 50) / 1, 100))
-                        sharpe_score = max(0, min((sharpe + 5) / 10 * 100, 100))
-                        
-                        combo = (pf_score * 0.40 + wr_score * 0.30 + ret_score * 0.20 + sharpe_score * 0.10)
-                        result['combo_score'] = combo
-                    
-                    # Get best result
-                    sorted_results = sorted(
-                        results, 
-                        key=lambda x: float(x.get("combo_score", -999)), 
-                        reverse=True
-                    )
-                    
-                    best = sorted_results[0]
-                    selected_strategy = best['strategy_name']
-                    selected_symbol = best['symbol']
-                    selected_timeframe = best['timeframe']
-                    print(f"[+] Loaded best strategy: {selected_strategy} ({selected_timeframe}) on {selected_symbol}")
-            except Exception as e:
-                print(f"[WARNING] Could not load backtest results: {e}")
-        
-        # Fallback if no strategy selected
-        if not selected_strategy:
-            print("[WARNING] No backtest results found. Please run backtest first.")
-            print("[INFO] To run backtest, restart and answer 'y' to backtest question.")
-            selected_strategy = "SMA"
-            selected_symbol = "BTC/USD"
-            selected_timeframe = "1Min"
-            print(f"[FALLBACK] Using: {selected_strategy} on {selected_symbol}")
+        # Load best strategy from JSON using the loader function
+        selected_strategy, selected_symbols, selected_timeframe = get_best_strategy_from_backtest()
+        selected_symbol = selected_symbols[0]
     
     # Create fresh config with user choices - use the selected strategy, symbol, and timeframe
     config = TradingConfig(paper_trading=not IS_LIVE, strategy=selected_strategy, symbols=[selected_symbol], timeframe=selected_timeframe)
